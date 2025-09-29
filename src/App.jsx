@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState } from "react";
 import Controls from "./components/Controls";
 import Table from "./components/Table";
@@ -10,71 +9,74 @@ import {
 } from "./gameEngine";
 import "./App.css";
 
-/**
- * App — главный компонент игры Blackjack.
- * Корректно управляет колодой, руками игрока/дилера, ставкой, Double и Stand.
- */
+const DEAL_STEP_MS = 500;
+
+function genUid() {
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+}
 
 export default function App() {
-  // Инициализация колоды один раз при монтировании
   const [deck, setDeck] = useState(() => createDeck());
-
-  // Руки
   const [playerHand, setPlayerHand] = useState([]);
   const [dealerHand, setDealerHand] = useState([]);
 
-  // UI / игровой статус
-  const [dealerHidden, setDealerHidden] = useState(true); // true — вторая карта дилера скрыта
+  const [dealerHidden, setDealerHidden] = useState(true);
   const [inRound, setInRound] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Финансы
   const [balance, setBalance] = useState(1000);
   const [bet, setBet] = useState(100);
   const [currentBet, setCurrentBet] = useState(0);
 
-  // Double
   const [hasDoubled, setHasDoubled] = useState(false);
 
-  // ----- Вспомогательные функции -----
-
-  // Если колода маленькая — пересоздаём (reshuffle)
   function ensureDeckLocal(d) {
     if (!d || d.length < 15) {
-      const nd = createDeck();
-      return nd;
+      return createDeck();
     }
     return d;
   }
 
-  // Проверка на натуральный Blackjack (две карты = 21)
   function isBlackjack(hand) {
     return hand.length === 2 && calculateHandValue(hand) === 21;
   }
 
-  // Завершение раунда: дилер добирает, считаем результат и обновляем баланс (с анимацией)
+  // Завершение раунда: дилер добирает карты с плавной анимацией
   async function finishRound(playerFinalHand, deckState, stakeOverride) {
     setDealerHidden(false);
     let rest = deckState ? [...deckState] : [...deck];
     let dealerFinal = [...dealerHand];
 
-    // Анимированный добор дилера
-    while (calculateHandValue(dealerFinal) < 17) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    while (
+      calculateHandValue(dealerFinal) < 17 ||
+      (calculateHandValue(dealerFinal) < calculateHandValue(playerFinalHand) &&
+        calculateHandValue(playerFinalHand) <= 21)
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 700));
       rest = ensureDeckLocal(rest);
       const { card, rest: newRest } = drawCard(rest);
-      dealerFinal.push(card);
-      rest = newRest;
+
+      const cardWithUid = { ...card, uid: genUid(), isNew: true };
+      dealerFinal.push(cardWithUid);
       setDealerHand([...dealerFinal]);
-      setDeck([...rest]);
+      setDeck([...newRest]);
+      rest = newRest;
+
+      // через 800ms снимаем флаг "isNew", чтобы анимация не повторялась
+      setTimeout(() => {
+        setDealerHand((prev) =>
+          prev.map((c) =>
+            c.uid === cardWithUid.uid ? { ...c, isNew: false } : c
+          )
+        );
+      }, 800);
     }
 
-    // Ждём, чтобы последняя карта "дошла"
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     const pv = calculateHandValue(playerFinalHand);
     const dv = calculateHandValue(dealerFinal);
-    const stake = typeof stakeOverride === 'number' ? stakeOverride : currentBet;
+    const stake = typeof stakeOverride === "number" ? stakeOverride : currentBet;
 
     if (pv > 21) {
       setMessage("Перебор! Вы проиграли.");
@@ -93,9 +95,6 @@ export default function App() {
     setInRound(false);
   }
 
-  // ----- Действия игрока -----
-
-  // Раздать
   const deal = () => {
     if (inRound) return;
     if (bet <= 0) {
@@ -107,41 +106,60 @@ export default function App() {
       return;
     }
 
-    // Если в колоде мало карт — пересобираем
     let localDeck = ensureDeckLocal([...deck]);
-
-    // Раздача первых карт (функция возвращает player, dealer, rest)
     const { player, dealer, rest } = dealInitialHands(localDeck);
 
-    setPlayerHand(player);
-    setDealerHand(dealer);
+    const playerWithUid = player.map((c) => ({
+      ...c,
+      uid: genUid(),
+      isNew: true,
+    }));
+    const dealerWithUid = dealer.map((c) => ({
+      ...c,
+      uid: genUid(),
+      isNew: true,
+    }));
+
+    setPlayerHand(playerWithUid);
+    setDealerHand(dealerWithUid);
     setDeck(rest);
     setDealerHidden(true);
     setInRound(true);
     setHasDoubled(false);
     setMessage("");
 
-    // Списываем первоначальную ставку
     setBalance((prev) => prev - bet);
     setCurrentBet(bet);
 
-    // Проверка на Blackjack сразу после раздачи
-    const pBJ = isBlackjack(player);
-    const dBJ = isBlackjack(dealer);
+    // убираем "isNew" через время, чтобы анимация проигралась 1 раз
+    [...playerWithUid, ...dealerWithUid].forEach((card, idx) => {
+      setTimeout(() => {
+        setPlayerHand((prev) =>
+          prev.map((c) =>
+            c.uid === card.uid ? { ...c, isNew: false } : c
+          )
+        );
+        setDealerHand((prev) =>
+          prev.map((c) =>
+            c.uid === card.uid ? { ...c, isNew: false } : c
+          )
+        );
+      }, DEAL_STEP_MS * (idx + 1));
+    });
+
+    // Проверка на Blackjack
+    const pBJ = isBlackjack(playerWithUid);
+    const dBJ = isBlackjack(dealerWithUid);
 
     if (pBJ || dBJ) {
-      // Открываем карту дилера
       setDealerHidden(false);
 
       if (pBJ && !dBJ) {
-        // Выигрыш 3:2 — вернуть 2.5 * bet (учитывая, что bet уже списан)
         setMessage("Blackjack! Вы выиграли 3:2.");
         setBalance((prev) => prev + bet * 2.5);
       } else if (!pBJ && dBJ) {
         setMessage("Дилер имеет Blackjack. Вы проиграли.");
-        // ставка удерживается
       } else {
-        // Оба — Blackjack => push, вернуть ставку
         setMessage("Ничья: оба Blackjack.");
         setBalance((prev) => prev + bet);
       }
@@ -149,33 +167,38 @@ export default function App() {
     }
   };
 
-  // Hit — взять карту
   const hit = () => {
     if (!inRound) return;
 
     let localDeck = ensureDeckLocal([...deck]);
     const { card, rest } = drawCard(localDeck);
 
-    const newHand = [...playerHand, card];
+    const cardWithUid = { ...card, uid: genUid(), isNew: true };
+    const newHand = [...playerHand, cardWithUid];
     setPlayerHand(newHand);
     setDeck(rest);
 
+    setTimeout(() => {
+      setPlayerHand((prev) =>
+        prev.map((c) =>
+          c.uid === cardWithUid.uid ? { ...c, isNew: false } : c
+        )
+      );
+    }, 800);
+
     const pv = calculateHandValue(newHand);
     if (pv > 21) {
-      // Игрок перебрал — раскрываем дилера и завершаем
       setDealerHidden(false);
       setMessage("Перебор! Вы проиграли.");
       setInRound(false);
     }
   };
 
-  // Stand — игрок завершает ход; дилер добирает и считаем результат
   const stand = () => {
     if (!inRound) return;
     finishRound(playerHand, deck);
   };
 
-  // Double Down — удвоить ставку, получить одну карту и закончить ход
   const doubleDown = () => {
     if (!inRound) return;
     if (hasDoubled) return;
@@ -188,18 +211,25 @@ export default function App() {
       return;
     }
 
-    // вычисляем новую ставку ДО обновления стейта
     const doubleBet = currentBet * 2;
     setBalance((prev) => prev - currentBet);
     setCurrentBet(doubleBet);
     setHasDoubled(true);
 
-    // даём ровно одну карту
     let localDeck = ensureDeckLocal([...deck]);
     const { card, rest } = drawCard(localDeck);
-    const newHand = [...playerHand, card];
+    const cardWithUid = { ...card, uid: genUid(), isNew: true };
+    const newHand = [...playerHand, cardWithUid];
     setPlayerHand(newHand);
     setDeck(rest);
+
+    setTimeout(() => {
+      setPlayerHand((prev) =>
+        prev.map((c) =>
+          c.uid === cardWithUid.uid ? { ...c, isNew: false } : c
+        )
+      );
+    }, 800);
 
     const pv = calculateHandValue(newHand);
     if (pv > 21) {
@@ -209,11 +239,9 @@ export default function App() {
       return;
     }
 
-    // иначе дилер играет и раунд завершается, явно передаём doubleBet
     finishRound(newHand, rest, doubleBet);
   };
 
-  // Новый раунд — сброс поля (оставляем баланс)
   const onNextRound = () => {
     setPlayerHand([]);
     setDealerHand([]);
@@ -224,27 +252,34 @@ export default function App() {
     setInRound(false);
   };
 
-  // ----- Вычисления для UI -----
   const canDouble =
-    inRound &&
-    playerHand.length === 2 &&
-    !hasDoubled &&
-    balance >= currentBet;
+    inRound && playerHand.length === 2 && !hasDoubled && balance >= currentBet;
 
-  const roundFinished = !inRound && (playerHand.length > 0 || dealerHand.length > 0);
+  const roundFinished =
+    !inRound && (playerHand.length > 0 || dealerHand.length > 0);
 
   return (
     <div className="App">
       <h1>Blackjack</h1>
 
       <div className="meta" style={{ marginBottom: 12 }}>
-        <div>Баланс: <strong>💰 {balance}</strong></div>
-        <div style={{ marginLeft: 16 }}>Текущая ставка: <strong>{currentBet}</strong></div>
+        <div>
+          Баланс: <strong>💰 {balance}</strong>
+        </div>
+        <div style={{ marginLeft: 16 }}>
+          Текущая ставка: <strong>{currentBet}</strong>
+        </div>
       </div>
 
-      <Table dealerHand={dealerHand} playerHand={playerHand} dealerHidden={dealerHidden} />
+      <Table
+        dealerHand={dealerHand}
+        playerHand={playerHand}
+        dealerHidden={dealerHidden}
+      />
 
-      <div className="message" style={{ marginTop: 12 }}>{message}</div>
+      <div className="message" style={{ marginTop: 12 }}>
+        {message}
+      </div>
 
       <Controls
         balance={balance}
