@@ -1,0 +1,188 @@
+/* src/App.css */
+
+/* Общий фон и выравнивание */
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #1a472a, #0d2616);
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.App {
+  text-align: center;
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0px 20px rgba(229, 255, 0, 1);
+  max-width: 800px;
+  width: 100%;
+}
+
+/* Заголовок */
+.App h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  color: #ffd700;
+}
+
+/* Баланс и ставка */
+.meta {
+  display: flex;
+  justify-content: center;
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+}
+
+.meta strong {
+  color: #ffd700;
+}
+
+/* Игровой стол */
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  margin: 20px 0;
+}
+
+.panel {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 15px;
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.603);
+}
+
+.panel h3 {
+  margin: 0 0 10px;
+  font-size: 1.3rem;
+}
+
+/* Карты */
+.cards {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.card {
+  font-size: 2rem;
+  background: #fff;
+  color: #000;
+  width: 50px;
+  height: 70px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 2px 4px 6px rgba(0,0,0,0.5);
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: scale(1.05);
+}
+
+/* Анимация появления карты */
+.card-animate {
+  animation: cardFadeIn 0.22s cubic-bezier(.4,1.6,.6,1);
+}
+@keyframes cardFadeIn {
+  0% { opacity: 0; transform: scale(0.7) translateY(18px); }
+  80% { opacity: 1; transform: scale(1.08) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Сообщение о результате */
+.message {
+  font-size: 1.3rem;
+  margin: 15px 0;
+  min-height: 28px;
+  font-weight: bold;
+}
+
+/* Кнопки */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+
+
+
+/* Инпут ставки */
+.controls input {
+  padding: 8px;
+  width: 80px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  text-align: center;
+}
+
+
+
+
+
+
+
+/* ==== Override: гарантированно стилизуем кнопки и их disabled-состояние ==== */
+
+/* базовый селектор (включает все кнопки на странице) */
+button,
+.controls .buttons button {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: rgb(255, 229, 81) !important; /* желтый по умолчанию */
+  color: #000 !important;
+  border: 2px solid rgba(0,0,0,0.15) !important;
+  padding: 10px 18px;
+  border-radius: 8px;
+  min-width: 100px;
+  font-weight: 700;
+  cursor: pointer !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transition: background-color 0.18s ease, transform 0.12s ease, opacity 0.18s;
+}
+
+/* hover только для активных кнопок */
+button:hover:not(:disabled),
+.controls .buttons button:hover:not(:disabled) {
+  background-color: rgb(247, 218, 58) !important; /* красный при наведении */
+  color: #000 !important;
+  transform: translateY(-2px);
+}
+
+/* disabled: оставляем тот же визуал, но чуть приглушим */
+button:disabled,
+.controls .buttons button:disabled {
+  background-color: rgb(247, 218, 58) !important; /* тот же желтый */
+  color: #000 !important;
+  opacity: 0.78 !important;               /* слегка приглушён */
+  cursor: not-allowed !important;
+  filter: none !important;
+  -webkit-text-fill-color: #000 !important; /* для специфики WebKit */
+}
+
+/* Если где-то используются классы .disabled вместо атрибута disabled */
+button.disabled,
+.controls .buttons .disabled {
+  background-color: rgb(247, 218, 58) !important;
+  color: #000 !important;
+  opacity: 0.78 !important;
+}
+
+/* Уточнение: если есть input[type="submit"] */
+input[type="submit"], input[type="button"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
