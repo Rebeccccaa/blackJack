@@ -1,3 +1,4 @@
+// App.jsx
 import React, { useState } from "react";
 import Controls from "./components/Controls";
 import Table from "./components/Table";
